@@ -105,3 +105,6 @@ dist-ssr
 
 # TernJS port file
 .tern-port
+
+# VSCode project config
+.vscode
