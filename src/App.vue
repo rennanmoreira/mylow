@@ -1,3 +1,28 @@
+<script setup>
+  import { useListsStore } from './store/lists'
+  import { router } from './router/index'
+  import { ref, computed } from 'vue'
+
+  const  drawer= ref(false),
+  const  fab= ref(false),
+  const store = useListsStore()
+  const currentMenu = computed(() => store.getters['currentMenu'])
+  const currentListSpaceName = computed(()=> currentMenu?.spaceName)
+  const currentMenuIndex = computed({
+      get() {
+        return store.currentMenuIndex
+      },
+      set(value) {
+        store.SET_CURRENT_MENU_INDEX(value)
+        const listId = store.menuOptions[value].listId
+        listId && store.requestGetList(listId)
+        drawer.value = false
+        // router.push({ name: 'home' }) // TODO: finalizar navegacao rotas
+      },
+    })
+  }
+</script>
+
 <template>
   <v-app>
     <div class="overflow-hidden">
@@ -24,7 +49,7 @@
       <v-navigation-drawer app v-model="drawer" temporary>
         <v-list nav dense>
           <v-list-item-group v-model="currentMenuIndex" active-class="indigo--text text--accent-4">
-            <v-list-item v-for="option in menuOptions" :key="option.spaceId">
+            <v-list-item v-for="option in store.menuOptions" :key="option.spaceId">
               <v-list-item-icon>
                 <v-icon>{{ option.icon }}</v-icon>
               </v-list-item-icon>
@@ -70,51 +95,6 @@
     </div>
   </v-app>
 </template>
-
-<script>
-  import { useListsStore } from './store/lists'
-  import { mapStores } from 'pinia'
-  import { router } from './router/index'
-
-  export default {
-    name: 'App',
-
-    data: () => ({
-      drawer: false,
-      fab: false,
-    }),
-
-    computed: {
-      ...mapStores(useListsStore),
-      menuOptions() {
-        return this.listsStore.menuOptions
-      },
-      currentList() {
-        return this.listsStore.currentList
-      },
-      currentMenu() {
-        return this.listsStore.getters['currentMenu']
-      },
-      currentListSpaceName() {
-        return this.currentMenu?.spaceName
-      },
-      currentMenuIndex: {
-        get() {
-          return this.listsStore.currentMenuIndex
-        },
-        set(value) {
-          this.listsStore.SET_CURRENT_MENU_INDEX(value)
-
-          const listId = this.menuOptions[value].listId
-          listId && this.listsStore.requestGetList(listId)
-          this.drawer = false
-
-          // router.push({ name: 'home' }) // TODO: finalizar navegacao rotas
-        },
-      },
-    },
-  }
-</script>
 
 <style scoped>
   .rotate-45 {

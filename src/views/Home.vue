@@ -1,3 +1,386 @@
+<script setup>
+  import { useListsStore } from '../store/lists'
+  import { ref, computed, onMounted, onBeforeMount } from 'vue'
+
+  // ################### MAYLON #######################
+  // # Me ajudou no meu momento de vida mais baixo    #
+  // # Ele resolveu meu ponto mais fraco, minha baixa #
+  // # Obrigado meu dog Maylon! <3										#
+  // ##################################################
+  const myLow = ref({
+    maylonSimilarSpeech: [],
+    speechRecognition: null,
+    hasBeenCalled: false,
+    startTimeout: null,
+    currentText: '',
+    overlay: false,
+    listeningActions: false,
+    history: [],
+  })
+  const selected = ref([])
+  const timezoneOptions = ref({
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false,
+  })
+  const todo = ref({})
+  const todos = ref([])
+  const newTodo = ref('') // TODO: Tranformar em objeto (todo) para usar novas props
+  const showErrorMessage = ref(false)
+  const errorMessage = ref('')
+  const editedTodo = ref(null)
+  const visibility = ref('all')
+  const recognition = ref(null)
+  const speechRecognitionList = ref(null)
+  const isRecording = ref(false)
+  const taskDialog = ref(false)
+  const currentTask = ref({
+    id: '',
+    name: '',
+    description: '',
+    status: '',
+    date_created: '',
+    date_updated: '',
+  })
+  const store = useListsStore()
+
+  const currentListTasks = computed(() => {
+    const currentListTasks = store.currentListTasks
+    if (!currentListTasks) return []
+    return currentListTasks.map((i) => ({
+      ...i,
+      lastUpdatedDate: this.normalizeDatetime(i.date_updated),
+    }))
+  })
+
+  // const filteredTodos = computed(() => filters[visibility.value](todos.value))
+  // const remaining = computed(() => filters.active(todos.value).length)
+
+  const normalizeDatetime = (datetime) =>
+    new Intl.DateTimeFormat('pt-BR', timezoneOptions.value).format(datetime)
+  const checkZero = (data) => {
+    if (data.length == 1) {
+      data = '0' + data
+    }
+    return data
+  }
+
+  const currentTaskStatus = () => {
+    if (store.status.length) return '-'
+    return store.status.find((i) => i.status == currentTask.value.status)?.name || '-'
+  }
+
+  const currentTaskDateCreated = () => {
+    if (currentTask.value.date_created) return '-'
+    const date = new Date(currentTask.value.date_created)
+    const hour = checkZero(date.getHours() + '')
+    const minute = checkZero(date.getMinutes() + '')
+    return `${hour}:${minute} ${date.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`
+  }
+
+  const currentTaskDateUpdated = () => {
+    if (currentTask.value.date_updated) return '-'
+
+    const date = new Date(currentTask.value.date_updated)
+    const hour = checkZero(date.getHours() + '')
+    const minute = checkZero(date.getMinutes() + '')
+    return `${hour}:${minute} ${date.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`
+  }
+
+  const currentListLoading = () => store.loading.currentList
+
+  const currentListTasksLoading = () => store.loading.currentListTasks
+
+  const addTodo = () => {
+    const value = newTodo.value && newTodo.value.trim()
+    if (!value) return
+
+    // const temp_uid = crypto.randomUUID()
+
+    if (currentList.value?.id) {
+      showErrorMessage.value = true
+      errorMessage.value = 'Selecione uma lista de tarefas'
+      return
+    }
+
+    const listId = currentList.value.id
+
+    const task = {
+      // temp_uid,
+      name: value,
+      description: '123',
+      status: 'backlog',
+    }
+
+    store.requestAddTaskInList({ listId, task }).finally(() => (newTodo.value = ''))
+  }
+
+  const removeTodo = () => {
+    // todos.value.splice(todos.value.indexOf(todo), 1)
+  }
+
+  const editTodo = () => {
+    // beforeEditCache.value = todo.title
+    // editedTodo = todo.value
+  }
+
+  const doneEdit = () => {
+    // if (!editedTodo.value) {
+    // 	return
+    // }
+    // editedTodo.value = null
+    // todo.title = todo.title.trim()
+    // if (!todo.title) {
+    // 	removeTodo(todo)
+    // }
+  }
+
+  const cancelEdit = () => {
+    // editedTodo.value = null
+    // todo.title = beforeEditCache.value
+  }
+  const removeCompleted = () => {
+    // todos.value = filters.active(todos.value)
+  }
+
+  const openTaskDialog = (item) => {
+    taskDialog.value = true
+    currentTask.value = item
+  }
+  const startRecognition = () => {
+    console.log('Starting')
+    isRecording.value = true
+    // newTodoSpeechRecognition()
+    recognition.start()
+  }
+
+  const stopRecognition = () => {
+    console.log('Stopping')
+    isRecording.value = false
+    recognition.stop()
+    recognition.value = null
+  }
+  const newTodoSpeechRecognition = () => {
+    // recognition.onresult = (event) => {
+    // 	const color = event.results[0][0].transcript
+    // 	console.log('color: ', color)
+    // }
+  }
+  // hasMyLow(text) {
+  // 	myLowSimilarSpeech = ['myLow', 'mailon', 'maylom', 'mailom', 'nylon']
+  // },
+  const startMyLow = () => {
+    console.log('MyLow - Starting')
+    resetMyLow()
+    myLow.speechRecognition.start()
+
+    // clearTimeout(myLow.startTimeout)
+    // myLow.value.startTimeout = setTimeout(myLowTimeout, 100)
+  }
+  const stopMyLow = () => {
+    console.log('MyLow - STOP')
+
+    if (this.myLow.speechRecognition) {
+      // clearTimeout(myLow.startTimeout)
+      this.myLow.speechRecognition.stop()
+    }
+  }
+  const resetMyLow = () => {
+    clearTimeout(myLow.timeout)
+
+    myLow.overlay = false
+    myLow.currentText = ''
+    myLow.hasBeenCalled = false
+    myLow.listeningActions = false
+  }
+  const myLowTimeout = () => {
+    console.log('MyLow - timeout')
+
+    if (myLow.speechRecognition) {
+      myLow.speechRecognition.start()
+    }
+  }
+
+  const myLowActions = (text) => {
+    if (['adicionar', 'tarefa'].every((i) => text.includes(i))) {
+      myLow.currentText = '[ALERTA] - Maylon adicionando uma tarefa'
+      console.log(myLow.currentText)
+    }
+    if (['remover', 'tarefa'].every((i) => text.includes(i))) {
+      myLow.currentText = '[ALERTA] - Maylon removendo uma tarefa'
+      console.log(myLow.currentText)
+    }
+  }
+
+  const myLowShowUp = () => (myLow.overlay = true)
+
+  const startSpeechRecognitionAPI = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition && 'development' !== 'production') {
+      throw new Error('Speech Recognition does not exist on this browser. Use Chrome or Firefox')
+    }
+
+    if (!SpeechRecognition) {
+      console.error('No Speech Recognition')
+      return
+    }
+
+    const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList
+
+    const grammar =
+      '#JSGF V1.0; grammar colors; public <color> = myLow | myLow adicionar uma tarefa ' +
+      '| myLow criar uma tarefa | myLow remover uma tarefa |' +
+      myLow.maylonSimilarSpeech.join(' | ') +
+      ';'
+    console.log(grammar)
+
+    speechRecognitionList.value = new SpeechGrammarList()
+    speechRecognitionList.addFromString(grammar, 1)
+
+    recognition.value = new SpeechRecognition()
+    recognition.grammars = speechRecognitionList.value
+    recognition.interimResults = true
+
+    recognition.onresult = ({ results }) => {
+      console.log('[Recognition] result')
+      newTodo.value = Array.from(results).reduce((acc, i) => acc + i[0].transcript, '')
+      console.log('[Recognition] result: ', newTodo.value)
+    }
+
+    recognition.onend = () => {
+      console.log('[Recognition] End')
+      if (newTodo.value !== '') {
+        addTodo()
+        isRecording.value = false
+        // TODO: validate event with @Rennan
+        this.$emit('onTranscriptionEnd', {
+          transcription: [newTodo.value],
+          lastSentence: newTodo.value,
+        })
+      } else {
+        console.log('[Recognition] End - Nothing Found')
+      }
+    }
+
+    // speechRecognitionList.value = new SpeechGrammarList()
+    // speechRecognitionList.addFromString(grammar, 1)
+
+    myLow.speechRecognition = new SpeechRecognition()
+    myLow.speechRecognition.grammars = speechRecognitionList.value
+    myLow.speechRecognition.lang = 'pt-BR' // TODO: Fazer em pt-BR e outro ouvindo em en-US pra ver se captura mylon corretamente
+    myLow.speechRecognition.interimResults = true
+    myLow.speechRecognition.continuous = true
+    myLow.speechRecognition.maxAlternatives = 1
+
+    myLow.speechRecognition.onsoundstart = (event) => {
+      const text = event
+      console.log('[MyLow] soundstart: ' + text + ' - hasMaylow: ', event)
+    }
+
+    myLow.speechRecognition.onspeechstart = (event) => {
+      const text = event
+      console.log('[MyLow] speechstart: ' + text + ' - hasMaylow: ', event)
+    }
+
+    myLow.speechRecognition.onresult = (event) => {
+      myLow.currentText = event.results[event.resultIndex][0].transcript.trim().toLowerCase()
+
+      console.log('[MyLow] result - enter: ', myLow.currentText)
+      myLow.hasBeenCalled = myLow.maylonSimilarSpeech.some((i) => myLow.currentText.includes(i))
+
+      if (myLow.hasBeenCalled) {
+        console.log('[MyLow] result - mylow: ', myLow.currentText)
+        !myLow.overlay && myLowShowUp()
+        myLowActions(myLow.currentText)
+      }
+    }
+
+    myLow.speechRecognition.onend = () => {
+      if (myLow.currentText) {
+        console.log('[MyLow] End: ', myLow.currentText)
+
+        const newRegistry = {
+          createdDate: new Date(),
+          text: myLow.currentText,
+          hasBeenCalled: myLow.hasBeenCalled || undefined,
+        }
+
+        myLow.history.push(newRegistry)
+
+        const myLowSpeechHistory = JSON.parse(localStorage.getItem('myLowSpeechHistory') || '[]')
+        myLowSpeechHistory.push(newRegistry)
+        localStorage.setItem('myLowSpeechHistory', JSON.stringify(myLowSpeechHistory))
+
+        resetMyLow()
+
+        myLow.timeout = setTimeout(myLowTimeout(), 2000)
+      }
+    }
+
+    // listeningActions
+    startMyLow()
+    // myLow.speechRecognition.addEventListener('result', event => {
+    // 	clearTimeout(myLow.startTimeout)
+
+    // 	myLow.currentText = Array.from(event.results)
+    // 		.reduce((acc, i) => acc + i[0].transcript, '')
+    // 		.toLowerCase()
+
+    // 	console.log('[MyLow] result: ', myLow.currentText)
+
+    // 	myLow.hasBeenCalled = maylonSimilarSpeech.some(i => myLow.currentText.includes(i))
+    // 	// console.log('[MyLow] result: ', myLow.currentText)
+    // })
+
+    // myLow.speechRecognition.addEventListener('end', () => {
+    // 	stopMyLow()
+
+    // 	if (myLow.currentText) {
+    // 		console.log('[MyLow] End: ', myLow.currentText)
+
+    // 		const newRegistry = {
+    // 			createdDate: new Date(),
+    // 			text: myLow.currentText,
+    // 			hasBeenCalled: myLow.hasBeenCalled || undefined,
+    // 		}
+
+    // 		myLow.history.push(newRegistry)
+
+    // 		const myLowSpeechHistory = JSON.parse(localStorage.getItem('myLowSpeechHistory') || '[]')
+    // 		myLowSpeechHistory.push(newRegistry)
+    // 		localStorage.setItem('myLowSpeechHistory', JSON.stringify(myLowSpeechHistory))
+
+    // 		if (myLow.hasBeenCalled) {
+    // 			myLowActions(myLow.currentText)
+    // 		}
+    // 	}
+    // 	startMyLow()
+    // })
+    // startMyLow()
+  }
+
+  onMounted(() => {
+    // startSpeechRecognitionAPI()	ROLLBACK: disable this line
+    console.log('Home: startTimeout: ', startTimeout.value)
+  })
+
+  onBeforeMount(() => {
+    stopMyLow()
+    myLow.value = {
+      speechRecognition: null,
+      history: [],
+      currentText: '',
+      hasBeenCalled: false,
+      cancelTimeout: null,
+      maylonSimilarSpeech: [],
+    }
+  })
+</script>
+
 <template>
   <v-container class="ml-auto mr-auto">
     <v-alert
@@ -138,414 +521,6 @@
     </v-overlay>
   </v-container>
 </template>
-
-<script>
-  import { useListsStore } from '../store/lists'
-  export default {
-    name: 'Home',
-
-    data: () => ({
-      selected: [],
-      timezoneOptions: {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        hour12: false,
-      },
-      showErrorMessage: false,
-      errorMessage: '',
-      newTodo: '', // TODO: Tranformar em objeto (todo) para usar novas props
-      editedTodo: null,
-      visibility: 'all',
-      recognition: null,
-      speechRecognitionList: null,
-      isRecording: false,
-      taskDialog: false,
-      currentTask: {
-        id: '',
-        name: '',
-        description: '',
-        status: '',
-        date_created: '',
-        date_updated: '',
-      },
-      // ################### MAYLON #######################
-      // # Me ajudou no meu momento de vida mais baixo    #
-      // # Ele resolveu meu ponto mais fraco, minha baixa #
-      // # Obrigado meu dog Maylon! <3										#
-      // ##################################################
-      myLow: {
-        maylonSimilarSpeech: [],
-        speechRecognition: null,
-        hasBeenCalled: false,
-        startTimeout: null,
-        currentText: '',
-        overlay: false,
-        listeningActions: false,
-        history: [],
-      },
-    }),
-
-    computed: {
-      ...mapStores(useListsStore),
-      lists() {
-        return this.listsStores.lists
-      },
-      status() {
-        return this.listsStores.status
-      },
-      currentList() {
-        return this.listsStores.currentList
-      },
-      currentListTasks() {
-        const currentListTasks = this.listsStores.currentListTasks
-
-        if (!currentListTasks) return []
-
-        return currentListTasks.map((i) => ({
-          ...i,
-          lastUpdatedDate: this.normalizeDatetime(i.date_updated),
-        }))
-      },
-      currentTaskStatus() {
-        if (!this.status.length) return '-'
-
-        return this.status.find((i) => i.status == this.currentTask.status.status)?.name || '-'
-      },
-      currentTaskDateCreated() {
-        if (!this.currentTask.date_created) return '-'
-
-        const date = new Date(+this.currentTask.date_created)
-        const hour = this.checkZero(date.getHours() + '')
-        const minute = this.checkZero(date.getMinutes() + '')
-        return `${hour}:${minute} ${date.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`
-      },
-      currentTaskDateUpdated() {
-        if (!this.currentTask.date_updated) return '-'
-
-        const date = new Date(+this.currentTask.date_updated)
-        const hour = this.checkZero(date.getHours() + '')
-        const minute = this.checkZero(date.getMinutes() + '')
-        return `${hour}:${minute} ${date.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`
-      },
-      currentListLoading() {
-        return this.listsStores.loading.currentList
-      },
-      currentListTasksLoading() {
-        return this.listsStores.loading.currentListTasks
-      },
-      // filteredTodos: function () {
-      // 	return filters[this.visibility](this.todos)
-      // },
-      // remaining: function () {
-      // 	return filters.active(this.todos).length
-      // },
-    },
-    methods: {
-      checkZero(data) {
-        if (data.length == 1) {
-          data = '0' + data
-        }
-        return data
-      },
-      normalizeDatetime(datetime) {
-        return new Intl.DateTimeFormat('pt-BR', this.timezoneOptions).format(datetime)
-      },
-      addTodo() {
-        const value = this.newTodo && this.newTodo.trim()
-
-        if (!value) return
-
-        // const temp_uid = crypto.randomUUID()
-
-        if (!this.currentList?.id) {
-          this.showErrorMessage = true
-          this.errorMessage = 'Selecione uma lista de tarefas'
-          return
-        }
-
-        const listId = this.currentList.id
-
-        const task = {
-          // temp_uid,
-          name: value,
-          description: '123',
-          status: 'backlog',
-        }
-
-        this.listsStores.requestAddTaskInList({ listId, task }).finally(() => (this.newTodo = ''))
-      },
-
-      removeTodo() {
-        // this.todos.splice(this.todos.indexOf(todo), 1)
-      },
-
-      editTodo() {
-        // this.beforeEditCache = todo.title
-        // this.editedTodo = todo
-      },
-
-      doneEdit() {
-        // if (!this.editedTodo) {
-        // 	return
-        // }
-        // this.editedTodo = null
-        // todo.title = todo.title.trim()
-        // if (!todo.title) {
-        // 	this.removeTodo(todo)
-        // }
-      },
-
-      cancelEdit() {
-        // this.editedTodo = null
-        // todo.title = this.beforeEditCache
-      },
-      removeCompleted() {
-        // this.todos = filters.active(this.todos)
-      },
-      openTaskDialog(item) {
-        this.taskDialog = true
-        this.currentTask = item
-      },
-      startRecognition() {
-        console.log('Starting')
-        this.isRecording = true
-        // this.newTodoSpeechRecognition()
-        this.recognition.start()
-      },
-      stopRecognition() {
-        console.log('Stopping')
-        this.isRecording = false
-        this.recognition.stop()
-        this.recognition = null
-      },
-      newTodoSpeechRecognition() {
-        // this.recognition.onresult = function (event) {
-        // 	var color = event.results[0][0].transcript
-        // 	console.log('color: ', color)
-        // }
-      },
-      // hasMyLow(text) {
-      // 	myLowSimilarSpeech = ['myLow', 'mailon', 'maylom', 'mailom', 'nylon']
-      // },
-      startMyLow() {
-        console.log('MyLow - Starting')
-        this.resetMyLow()
-        this.myLow.speechRecognition.start()
-
-        // clearTimeout(this.myLow.startTimeout)
-        // this.myLow.startTimeout = setTimeout(this.myLowTimeout, 100)
-      },
-      stopMyLow() {
-        console.log('MyLow - STOP')
-
-        if (this.myLow.speechRecognition) {
-          // clearTimeout(this.myLow.startTimeout)
-          this.myLow.speechRecognition.stop()
-        }
-      },
-      resetMyLow() {
-        clearTimeout(this.myLow.timeout)
-
-        this.myLow.overlay = false
-        this.myLow.currentText = ''
-        this.myLow.hasBeenCalled = false
-        this.myLow.listeningActions = false
-      },
-      myLowTimeout() {
-        console.log('MyLow - timeout')
-
-        if (this.myLow.speechRecognition) {
-          this.myLow.speechRecognition.start()
-        }
-      },
-      startSpeechRecognitionAPI() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-        if (!SpeechRecognition && 'development' !== 'production') {
-          throw new Error(
-            'Speech Recognition does not exist on this browser. Use Chrome or Firefox'
-          )
-        }
-
-        if (!SpeechRecognition) {
-          console.error('No Speech Recognition')
-          return
-        }
-
-        const SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList
-
-        const grammar =
-          '#JSGF V1.0; grammar colors; public <color> = myLow | myLow adicionar uma tarefa ' +
-          '| myLow criar uma tarefa | myLow remover uma tarefa |' +
-          this.myLow.maylonSimilarSpeech.join(' | ') +
-          ';'
-        console.log(grammar)
-        this.speechRecognitionList = new SpeechGrammarList()
-        this.speechRecognitionList.addFromString(grammar, 1)
-
-        this.recognition = new SpeechRecognition()
-        this.recognition.grammars = this.speechRecognitionList
-        this.recognition.interimResults = true
-
-        this.recognition.onresult = (event) => {
-          console.log('[Recognition] result')
-          this.newTodo = Array.from(event.results).reduce((acc, i) => acc + i[0].transcript, '')
-          console.log('[Recognition] result: ', this.newTodo)
-        }
-
-        this.recognition.onend = () => {
-          console.log('[Recognition] End')
-          if (this.newTodo !== '') {
-            this.addTodo()
-            this.isRecording = false
-            // TODO: validate event with @Rennan
-            this.$emit('onTranscriptionEnd', {
-              transcription: [this.newTodo],
-              lastSentence: this.newTodo,
-            })
-          } else {
-            console.log('[Recognition] End - Nothing Found')
-          }
-        }
-
-        // this.speechRecognitionList = new SpeechGrammarList()
-        // this.speechRecognitionList.addFromString(grammar, 1)
-
-        this.myLow.speechRecognition = new SpeechRecognition()
-        this.myLow.speechRecognition.grammars = this.speechRecognitionList
-        this.myLow.speechRecognition.lang = 'pt-BR' // TODO: Fazer em pt-BR e outro ouvindo em en-US pra ver se captura mylon corretamente
-        this.myLow.speechRecognition.interimResults = true
-        this.myLow.speechRecognition.continuous = true
-        this.myLow.speechRecognition.maxAlternatives = 1
-
-        this.myLow.speechRecognition.onsoundstart = (event) => {
-          const text = event
-          console.log('[MyLow] soundstart: ' + text + ' - hasMaylow: ', event)
-        }
-
-        this.myLow.speechRecognition.onspeechstart = (event) => {
-          const text = event
-          console.log('[MyLow] speechstart: ' + text + ' - hasMaylow: ', event)
-        }
-
-        this.myLow.speechRecognition.onresult = (event) => {
-          this.myLow.currentText = event.results[event.resultIndex][0].transcript
-            .trim()
-            .toLowerCase()
-
-          console.log('[MyLow] result - enter: ', this.myLow.currentText)
-          this.myLow.hasBeenCalled = this.myLow.maylonSimilarSpeech.some((i) =>
-            this.myLow.currentText.includes(i)
-          )
-
-          if (this.myLow.hasBeenCalled) {
-            console.log('[MyLow] result - mylow: ', this.myLow.currentText)
-            !this.myLow.overlay && this.myLowShowUp()
-            this.myLowActions(this.myLow.currentText)
-          }
-        }
-
-        this.myLow.speechRecognition.onend = () => {
-          if (this.myLow.currentText) {
-            console.log('[MyLow] End: ', this.myLow.currentText)
-
-            const newRegistry = {
-              createdDate: new Date(),
-              text: this.myLow.currentText,
-              hasBeenCalled: this.myLow.hasBeenCalled || undefined,
-            }
-
-            this.myLow.history.push(newRegistry)
-
-            const myLowSpeechHistory = JSON.parse(
-              localStorage.getItem('myLowSpeechHistory') || '[]'
-            )
-            myLowSpeechHistory.push(newRegistry)
-            localStorage.setItem('myLowSpeechHistory', JSON.stringify(myLowSpeechHistory))
-
-            this.resetMyLow()
-
-            this.myLow.timeout = setTimeout(this.myLowTimeout, 2000)
-          }
-        }
-
-        // listeningActions
-        this.startMyLow()
-        // this.myLow.speechRecognition.addEventListener('result', event => {
-        // 	clearTimeout(this.myLow.startTimeout)
-
-        // 	this.myLow.currentText = Array.from(event.results)
-        // 		.reduce((acc, i) => acc + i[0].transcript, '')
-        // 		.toLowerCase()
-
-        // 	console.log('[MyLow] result: ', this.myLow.currentText)
-
-        // 	this.myLow.hasBeenCalled = maylonSimilarSpeech.some(i => this.myLow.currentText.includes(i))
-        // 	// console.log('[MyLow] result: ', this.myLow.currentText)
-        // })
-
-        // this.myLow.speechRecognition.addEventListener('end', () => {
-        // 	this.stopMyLow()
-
-        // 	if (this.myLow.currentText) {
-        // 		console.log('[MyLow] End: ', this.myLow.currentText)
-
-        // 		const newRegistry = {
-        // 			createdDate: new Date(),
-        // 			text: this.myLow.currentText,
-        // 			hasBeenCalled: this.myLow.hasBeenCalled || undefined,
-        // 		}
-
-        // 		this.myLow.history.push(newRegistry)
-
-        // 		const myLowSpeechHistory = JSON.parse(localStorage.getItem('myLowSpeechHistory') || '[]')
-        // 		myLowSpeechHistory.push(newRegistry)
-        // 		localStorage.setItem('myLowSpeechHistory', JSON.stringify(myLowSpeechHistory))
-
-        // 		if (this.myLow.hasBeenCalled) {
-        // 			this.myLowActions(this.myLow.currentText)
-        // 		}
-        // 	}
-        // 	this.startMyLow()
-        // })
-        // this.startMyLow()
-      },
-      myLowActions(text) {
-        if (['adicionar', 'tarefa'].every((i) => text.includes(i))) {
-          this.myLow.currentText = '[ALERTA] - Maylon adicionando uma tarefa'
-          console.log(this.myLow.currentText)
-        }
-        if (['remover', 'tarefa'].every((i) => text.includes(i))) {
-          this.myLow.currentText = '[ALERTA] - Maylon removendo uma tarefa'
-          console.log(this.myLow.currentText)
-        }
-      },
-      myLowShowUp() {
-        this.myLow.overlay = true
-      },
-    },
-
-    mounted() {
-      // this.startSpeechRecognitionAPI()	ROLLBACK: disable this line
-      console.log('Home: startTimeout: ', this.startTimeout)
-    },
-
-    beforeDestroy() {
-      this.stopMyLow()
-      this.myLow = {
-        speechRecognition: null,
-        history: [],
-        currentText: '',
-        hasBeenCalled: false,
-        cancelTimeout: null,
-        maylonSimilarSpeech: [],
-      }
-    },
-  }
-</script>
 
 <style lang="scss" scoped>
   .maylon-on:after {
